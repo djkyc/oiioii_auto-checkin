@@ -12,17 +12,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system deps
+      - name: Install system deps (minimal)
         run: |
           sudo apt update
-          sudo apt install -y xvfb libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2t64
+          sudo apt install -y xvfb libnss3 libxss1 libasound2t64 libatk-bridge2.0-0 libgbm1
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
       - name: Install Python packages
-        run: pip install undetected-chromedriver selenium requests
+        run: pip install -r requirements.txt
 
       - name: Run check-in
         env:
@@ -30,5 +38,4 @@ jobs:
           OIIOII_PASSWORD: ${{ secrets.OIIOII_PASSWORD }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        run: |
-          xvfb-run --auto-servernum python3 checkin.py
+        run: xvfb-run --auto-servernum python3 checkin.py
