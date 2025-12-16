@@ -1,55 +1,93 @@
 import os
+import time
 import requests
-import json
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-TOKEN = os.getenv("OIIOII_TOKEN")  # Secret 中存 access_token
+EMAIL = os.getenv("OIIOII_EMAIL")
+PASSWORD = os.getenv("OIIOII_PASSWORD")
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
 
 def send_tg(msg):
-    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
     try:
+        url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
         requests.post(url, data={
             "chat_id": TG_CHAT_ID,
-            "text": msg,
-            "parse_mode": "HTML",
+            "text": msg
         })
-        print("TG 推送成功")
-    except Exception as e:
-        print("TG 推送失败:", e)
+    except Exception:
+        pass
+
 
 
 def run():
-    result = "❌ 未知错误"
+    result = ""
 
     try:
-        url = "https://api.hogi.ai/points/free/daily"
-        headers = {
-            "Authorization": f"Bearer {TOKEN}",
-            "Content-Type": "application/json",
-        }
+        print("启动 undetected-chromedriver 浏览器...")
+        options = uc.ChromeOptions()
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--window-size=1400,900")
 
-        print("发送签到请求...")
-        r = requests.post(url, headers=headers)
+        driver = uc.Chrome(options=options)
 
-        print("状态码:", r.status_code)
-        print("响应:", r.text)
+        print("打开登录页...")
+        driver.get("https://www.oiioii.ai/login")
+        time.sleep(5)
 
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("success", False):
-                result = "🎉 今日签到成功！+300 盒饭币"
-            else:
-                result = f"⚠️ 无法重复签到：{data}"
+        print("输入邮箱...")
+        email_box = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
+        )
+        email_box.send_keys(EMAIL)
+
+        print("输入密码...")
+        driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
+
+        print("勾选协议...")
+        driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
+
+        print("点击登录按钮...")
+        login_btn = driver.find_element(By.XPATH, "//button/div[contains(text(),'登录')]")
+        login_btn.click()
+
+        print("等待登录完成...")
+        time.sleep(10)
+
+        print("进入首页...")
+        driver.get("https://www.oiioii.ai/home")
+        time.sleep(6)
+
+        print("打开赚盒饭...")
+        earn_btn = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
+        )
+        earn_btn.click()
+        time.sleep(3)
+
+        print("寻找每日免费奖励按钮...")
+        reward_btn = driver.find_elements(By.XPATH, "//*[contains(text(),'每日免费奖励')]")
+
+        if reward_btn:
+            reward_btn[0].click()
+            result = "🎉 今日成功领取 +300 盒饭币"
         else:
-            result = f"❌ 请求失败：{r.status_code} - {r.text}"
+            result = "✔ 今日已经领取或没有奖励按钮"
+
+        driver.quit()
 
     except Exception as e:
-        result = f"❌ 运行报错：{e}"
+        result = f"❌ 签到失败：{e}"
+        print(result)
 
-    print(result)
     send_tg(result)
+    print(result)
 
 
 if __name__ == "__main__":
