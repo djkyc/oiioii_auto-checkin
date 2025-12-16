@@ -20,6 +20,15 @@ def tg_send(msg):
         pass
 
 
+def safe_click(driver, xpath):
+    el = WebDriverWait(driver, 15).until(
+        EC.presence_of_element_located((By.XPATH, xpath))
+    )
+    driver.execute_script("arguments[0].scrollIntoView(true);", el)
+    time.sleep(0.5)
+    driver.execute_script("arguments[0].click();", el)
+
+
 def run():
     msg = ""
 
@@ -36,44 +45,31 @@ def run():
         driver.get("https://www.oiioii.ai/login")
         time.sleep(5)
 
-        print("输入邮箱密码...")
+        print("输入账号密码...")
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
 
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
-
-        print("勾选协议...")
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
-        print("点击真正的提交按钮（submit）...")
-        submit_btn = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, "//form//button[@type='submit']"))
-        )
-        submit_btn.click()
-
-        print("等待跳转...")
-        time.sleep(10)
+        print("点击提交登录按钮...")
+        safe_click(driver, "//form//button[@type='submit']")
+        time.sleep(8)
 
         print("进入首页...")
         driver.get("https://www.oiioii.ai/home")
         time.sleep(6)
 
-        print("点击赚盒饭...")
-        WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
-        ).click()
-
+        print("点击『赚盒饭』按钮（第一层）...")
+        safe_click(driver, "//*[contains(text(),'赚盒饭')]")
         time.sleep(3)
 
-        print("查找每日奖励按钮...")
-        reward_btn = driver.find_elements(By.XPATH, "//*[contains(text(),'每日免费奖励')]")
+        print("点击『每日免费奖励 +300』按钮（第二层）...")
+        # 这个才是真正的签到按钮
+        safe_click(driver, "(//span[contains(text(), '+300')])[1]")
 
-        if reward_btn:
-            reward_btn[0].click()
-            msg = "🎉 签到成功 +300"
-        else:
-            msg = "✔ 今日已领取"
+        msg = "🎉 签到成功 +300"
 
         driver.quit()
 
