@@ -9,14 +9,10 @@ TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
 
-def send_tg(msg: str):
+def send_tg(msg):
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
     try:
-        requests.post(url, data={
-            "chat_id": TG_CHAT_ID,
-            "text": msg,
-            "parse_mode": "HTML"
-        })
+        requests.post(url, data={"chat_id": TG_CHAT_ID, "text": msg, "parse_mode": "HTML"})
         print("TG 推送成功")
     except Exception as e:
         print("TG 推送失败：", e)
@@ -33,7 +29,6 @@ def run():
                     "--disable-gpu",
                     "--use-gl=swiftshader",
                     "--ignore-gpu-blacklist",
-                    "--enable-webgl",
                 ]
             )
 
@@ -41,42 +36,43 @@ def run():
                 locale="zh-CN",
                 viewport={"width": 1440, "height": 900}
             )
-
             page = context.new_page()
 
             print("访问登录页面...")
             page.goto("https://www.oiioii.ai/login", timeout=60000)
             page.wait_for_load_state("networkidle")
-            time.sleep(6)
+            time.sleep(5)
 
-            print("填写电子邮箱和密码...")
+            print("填写电子邮箱...")
             page.locator("input[type=email]").fill(EMAIL)
+            print("填写密码...")
             page.locator("input[type=password]").fill(PASSWORD)
 
             print("勾选协议...")
-            page.locator("input[type=checkbox]").check()
+            page.locator("input[type=checkbox]").check()   # ←← 修复这里！！！
 
-            print("点击粉色提交登录按钮...")
-            login_btn = page.locator("main button:has(div:has-text('登录'))").first
+            print("点击粉色登录按钮（form submit）...")
+            login_btn = page.locator("form button[type='submit']").first
             login_btn.click()
 
-            print("等待登录完成...")
+            print("等待登录生效...")
             time.sleep(8)
-            page.wait_for_load_state("networkidle")
 
-            # 登录成功检测
+            # 登录状态检查
             token = page.evaluate("localStorage.getItem('token') || ''")
+            print("Token 内容：", token)
+
             if not token:
                 raise Exception("登录失败（token 未生成）")
 
-            print("登录成功 → 访问首页...")
+            print("登录成功，进入首页...")
             page.goto("https://www.oiioii.ai/home")
             page.wait_for_load_state("networkidle")
             time.sleep(5)
 
-            print("点击赚盒饭按钮...")
+            print("查找赚盒饭按钮...")
             page.get_by_text("赚盒饭").click()
-            time.sleep(4)
+            time.sleep(3)
 
             print("查找每日奖励按钮...")
             reward1 = page.get_by_text("每日免费奖励")
@@ -84,12 +80,12 @@ def run():
 
             if reward1.count() > 0:
                 reward1.first.click()
-                result = "🎉 成功领取 +300 盒饭币"
+                result = "🎉 已成功领取 +300 盒饭币"
             elif reward2.count() > 0:
                 reward2.first.click()
-                result = "🎉 成功领取 +300 盒饭币"
+                result = "🎉 已成功领取 +300 盒饭币"
             else:
-                result = "✔ 今日已领取，无需重复签到"
+                result = "✔ 今日已领取"
 
             browser.close()
 
