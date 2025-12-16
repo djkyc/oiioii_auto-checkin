@@ -13,15 +13,16 @@ TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
 
 def send_tg(msg):
+    """向 Telegram 推送消息"""
     try:
         url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
         requests.post(url, data={
             "chat_id": TG_CHAT_ID,
             "text": msg
         })
-    except Exception:
-        pass
-
+        print("TG 推送成功")
+    except Exception as e:
+        print("TG 推送失败：", e)
 
 
 def run():
@@ -78,7 +79,7 @@ def run():
             reward_btn[0].click()
             result = "🎉 今日成功领取 +300 盒饭币"
         else:
-            result = "✔ 今日已经领取或没有奖励按钮"
+            result = "✔ 今日已领取或没有奖励按钮"
 
         driver.quit()
 
