@@ -3,7 +3,6 @@ import time
 import requests
 from playwright.sync_api import sync_playwright
 
-
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
@@ -11,7 +10,6 @@ TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
 
 def send_tg(msg: str):
-    """发送 Telegram 推送"""
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
     try:
         requests.post(url, data={
@@ -56,8 +54,7 @@ def run():
             page.locator("input[type=password]").fill(PASSWORD)
 
             print("勾选协议...")
-            checkbox = page.locator("input[type=checkbox']")
-            checkbox.check()
+            page.locator("input[type=checkbox]").check()
 
             print("点击粉色提交登录按钮...")
             login_btn = page.locator("main button:has(div:has-text('登录'))").first
@@ -72,12 +69,12 @@ def run():
             if not token:
                 raise Exception("登录失败（token 未生成）")
 
-            print("登录成功 → 进入首页...")
+            print("登录成功 → 访问首页...")
             page.goto("https://www.oiioii.ai/home")
             page.wait_for_load_state("networkidle")
             time.sleep(5)
 
-            print("查找、点击『赚盒饭』按钮...")
+            print("点击赚盒饭按钮...")
             page.get_by_text("赚盒饭").click()
             time.sleep(4)
 
