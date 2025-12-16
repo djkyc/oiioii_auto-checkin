@@ -1,8 +1,8 @@
-name: OiiOii Daily Check-in
+name: OiiOii API Daily Check-in
 
 on:
   schedule:
-    - cron: "0 1 * * *"   # 每天北京时间早上 9 点
+    - cron: "0 1 * * *"  # 北京时间上午 9 点
   workflow_dispatch:
 
 jobs:
@@ -18,19 +18,12 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install Playwright
-        run: |
-          pip install playwright requests
-          playwright install chromium
+      - name: Install dependencies
+        run: pip install requests
 
-      - name: Install Xvfb
-        run: sudo apt-get install -y xvfb
-
-      - name: Run Check-in Script with XVFB
+      - name: Run daily check-in
         env:
-          EMAIL: ${{ secrets.OIIOII_EMAIL }}
-          PASSWORD: ${{ secrets.OIIOII_PASSWORD }}
+          OIIOII_TOKEN: ${{ secrets.OIIOII_TOKEN }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        run: |
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python3 checkin.py
+        run: python3 checkin.py
