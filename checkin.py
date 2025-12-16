@@ -9,136 +9,96 @@ PASSWORD = os.getenv("PASSWORD")
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
-# 随机 UA 列表（真实 Chrome）
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 ]
 
+
 def send_tg_message(text):
-    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": TG_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML"
-    }
-    requests.post(url, data=data)
-
-
-def anti_detect(page):
-    """注入反检测 JavaScript"""
-
-    page.add_init_script("""
-    // ----------------------------------
-    // 1. 伪造 webdriver
-    // ----------------------------------
-    Object.defineProperty(navigator, 'webdriver', {
-        get: () => false,
-    });
-
-    // ----------------------------------
-    // 2. 填充 plugins
-    // ----------------------------------
-    Object.defineProperty(navigator, 'plugins', {
-        get: () => [1,2,3,4],
-    });
-
-    // ----------------------------------
-    // 3. languages
-    // ----------------------------------
-    Object.defineProperty(navigator, 'languages', {
-        get: () => ['zh-CN', 'zh', 'en'],
-    });
-
-    // ----------------------------------
-    // 4. 伪造权限
-    // ----------------------------------
-    const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) => (
-        parameters.name === 'notifications'
-            ? Promise.resolve({ state: Notification.permission })
-            : originalQuery(parameters)
-    );
-
-    // ----------------------------------
-    // 5. WebGL 指纹修补
-    // ----------------------------------
-    const getParameter = WebGLRenderingContext.prototype.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function(parameter) {
-        if (parameter === 37445) return 'NVIDIA';  // VENDOR
-        if (parameter === 37446) return 'NVIDIA GeForce RTX'; // RENDERER
-        return getParameter(parameter);
-    };
-
-    // ----------------------------------
-    // 6. 鼠标移动事件补充（更像真人）
-    // ----------------------------------
-    document.addEventListener('mousemove', () => {});
-    """)
+    """发送 TG 推送"""
+    try:
+        url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
+        requests.post(url, data={
+            "chat_id": TG_CHAT_ID,
+            "text": text,
+            "parse_mode": "HTML"
+        })
+        print("TG 推送成功")
+    except Exception as e:
+        print("TG 推送失败：", e)
 
 
 def run():
-    result_message = ""
+    print("=== 启动签到脚本 ===")
 
     try:
         with sync_playwright() as p:
-            # 真实浏览器模拟
-            user_agent = random.choice(USER_AGENTS)
+
+            ua = random.choice(USER_AGENTS)
+            print(f"使用 User-Agent: {ua}")
 
             browser = p.chromium.launch(
-                headless=False,   # ❗ 反检测：必须关闭 headless（会自动模拟 GUI）
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-infobars",
-                    "--lang=zh-CN,zh,en",
-                ]
+                headless=True,   # ← 在 GitHub Actions 必须使用 headless
+                args=["--disable-blink-features=AutomationControlled"]
             )
 
             context = browser.new_context(
-                user_agent=user_agent,
+                user_agent=ua,
                 locale="zh-CN",
-                screen={"width": 1366, "height": 768},
-                viewport={"width": 1366, "height": 768},
+                viewport={"width": 1280, "height": 800}
             )
 
             page = context.new_page()
-            anti_detect(page)
-
+            print("访问首页...")
             page.goto("https://www.oiioii.ai/home", timeout=60000)
+            time.sleep(5)
 
-            time.sleep(random.uniform(2, 4))
-
-            # 判断是否登录
             if "登录" in page.content():
+                print("执行登录...")
                 page.click("text=登录")
                 time.sleep(2)
                 page.fill("input[type=email]", EMAIL)
-                time.sleep(1)
                 page.fill("input[type=password]", PASSWORD)
-                time.sleep(1)
                 page.keyboard.press("Enter")
-                time.sleep(random.uniform(5, 7))
+                print("等待登录完成...")
+                time.sleep(8)
 
-            # 打开赚盒饭面板
+            print("展开赚盒饭面板")
+            page.wait_for_selector("div.cursor-pointer", timeout=15000)
             page.click("div.cursor-pointer")
-            time.sleep(random.uniform(2, 3))
+            time.sleep(3)
 
-            # 查找按钮
-            btn = page.locator("button:has-text('每日免费奖励')")
-            if btn.count() > 0:
-                btn.click()
-                result_message = "🎉 已成功领取 +300 盒饭币"
+            print("查找签到按钮...")
+            page.wait_for_selector("button", timeout=20000)
+            buttons = page.locator("button")
+
+            daily_button = None
+
+            for i in range(buttons.count()):
+                text = buttons.nth(i).inner_text()
+                print("检测按钮：", text)
+                if "每日免费奖励" in text or "+300" in text:
+                    daily_button = buttons.nth(i)
+                    break
+
+            if daily_button:
+                print("点击签到按钮...")
+                daily_button.click()
+                result = "🎉 签到成功！已领取 +300 盒饭币"
             else:
-                result_message = "✔ 今日已领取"
+                print("没有找到可领取按钮")
+                result = "✔ 今日已领取，无需重复签到"
 
             browser.close()
 
     except Exception as e:
-        result_message = f"❌ 签到失败：{e}"
+        result = f"❌ 签到失败：{e}"
+        print(result)
 
-    # Telegram 推送
-    send_tg_message(result_message)
+    send_tg_message(result)
+    print("=== 脚本结束 ===")
 
 
 if __name__ == "__main__":
