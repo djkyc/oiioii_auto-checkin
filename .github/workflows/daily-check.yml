@@ -1,0 +1,33 @@
+name: OiiOii Daily Check-in
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        pip install playwright requests
+        playwright install chromium
+
+    - name: Run check-in
+      env:
+        EMAIL: ${{ secrets.OIIOII_EMAIL }}
+        PASSWORD: ${{ secrets.OIIOII_PASSWORD }}
+        TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+      run: |
+        python3 checkin.py
