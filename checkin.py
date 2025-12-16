@@ -35,6 +35,10 @@ def run():
             print("访问首页...")
             page.goto("https://www.oiioii.ai/home", timeout=60000)
             time.sleep(6)
+            print("打印页面 HTML 前 5000 字符：")
+            html = page.content()
+            print(html[:5000])
+
 
             # 登录检测
             content = page.content()
