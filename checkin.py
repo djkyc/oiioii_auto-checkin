@@ -13,7 +13,7 @@ TG = os.getenv("TG")
 BOT, CHAT = TG.split(":", 1)
 
 
-def tg(msg):
+def tg_send(msg):
     try:
         requests.post(
             f"https://api.telegram.org/bot{BOT}/sendMessage",
@@ -23,8 +23,9 @@ def tg(msg):
         pass
 
 
-def wait_and_click(driver, xpath):
-    el = WebDriverWait(driver, 15).until(
+def js_click(driver, xpath):
+    """强制点击（scroll + js click）"""
+    el = WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.XPATH, xpath))
     )
     driver.execute_script("arguments[0].scrollIntoView(true);", el)
@@ -46,33 +47,34 @@ def run():
 
         print("打开登录页...")
         driver.get("https://www.oiioii.ai/login")
-        time.sleep(5)
+        time.sleep(6)
 
+        print("填写账号密码...")
         WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
+            EC.presence_of_element_located((By.XPATH, "//input[@type='email']"))
         ).send_keys(EMAIL)
 
-        driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
-        driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
+        driver.find_element(By.XPATH, "//input[@type='password']").send_keys(PASSWORD)
 
-        print("点击提交登录按钮...")
-        wait_and_click(driver, "//form//button[@type='submit']")
+        driver.find_element(By.XPATH, "//input[@type='checkbox']").click()
+
+        print("点击登录按钮...")
+        js_click(driver, "//form//button[@type='submit']")
         time.sleep(8)
 
         print("进入首页...")
         driver.get("https://www.oiioii.ai/home")
         time.sleep(6)
 
-        print("点击『赚盒饭』按钮（使用新的精准 XPath）...")
-        credit_xpath = "(//div[contains(@class,'credit-btn-text') and contains(text(),'赚盒饭')])[1]/parent::button"
-        wait_and_click(driver, credit_xpath)
+        print("点击赚盒饭按钮（最终稳定 XPath）...")
+        # ← 这一条就是你 DOM 结构确认后的最精准定位
+        js_click(driver, "(//button[contains(@class,'credit-btn')])[1]")
 
-        print("等待浮层加载...")
-        time.sleep(3)
+        print("等待奖励面板弹出...")
+        time.sleep(2)
 
         print("点击『每日免费奖励 +300』按钮...")
-        reward_xpath = "(//span[contains(text(),'+300')])[1]"
-        wait_and_click(driver, reward_xpath)
+        js_click(driver, "(//span[contains(text(),'+300')])[1]")
 
         msg = "🎉 签到成功 +300"
 
@@ -82,7 +84,7 @@ def run():
         msg = f"❌ 失败：{e}"
 
     print(msg)
-    tg(msg)
+    tg_send(msg)
 
 
 if __name__ == "__main__":
