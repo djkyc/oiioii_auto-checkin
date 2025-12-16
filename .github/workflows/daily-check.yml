@@ -2,7 +2,7 @@ name: OiiOii Daily Check-in
 
 on:
   schedule:
-    - cron: "0 1 * * *"   # 每天北京时间 9 点执行
+    - cron: "0 1 * * *"   # 每天北京时间早上 9 点
   workflow_dispatch:
 
 jobs:
@@ -23,10 +23,10 @@ jobs:
           pip install playwright requests
           playwright install chromium
 
-      - name: Install xvfb
+      - name: Install Xvfb
         run: sudo apt-get install -y xvfb
 
-      - name: Run Sign-in Script with XVFB
+      - name: Run Check-in Script with XVFB
         env:
           EMAIL: ${{ secrets.OIIOII_EMAIL }}
           PASSWORD: ${{ secrets.OIIOII_PASSWORD }}
