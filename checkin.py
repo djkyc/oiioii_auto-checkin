@@ -22,12 +22,13 @@ def tg_send(msg):
         pass
 
 def click_at(driver, x, y):
+    """坐标点击"""
     actions = ActionChains(driver)
     actions.move_by_offset(x, y).click().perform()
     actions.move_by_offset(-x, -y).perform()
 
-def get_balance(driver):
-    """读取积分（从余额弹窗）"""
+def get_balance_from_popup(driver):
+    """从余额弹窗读取积分（最稳定）"""
     try:
         el = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
@@ -35,7 +36,9 @@ def get_balance(driver):
             )
         )
         text = el.text.strip().replace(",", "")
-        return text if text.isdigit() else text
+        if text.isdigit():
+            return text
+        return text
     except:
         return "未知"
 
@@ -51,37 +54,33 @@ def run():
         driver = uc.Chrome(options=options)
 
         driver.get("https://www.oiioii.ai/login")
-        time.sleep(4)
+        time.sleep(5)
 
         WebDriverWait(driver, 12).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
-
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
         driver.find_element(By.XPATH, "//form//button[@type='submit']").click()
-        time.sleep(6)
+        time.sleep(8)
 
-        # 首页
         driver.get("https://www.oiioii.ai/home")
-        time.sleep(3)
+        time.sleep(4)
 
         # 打开赚盒饭
         click_at(driver, 1180, 95)
         time.sleep(2)
 
-        # ⭐⭐ 新方法：点击余额和交易记录按钮（文本定位）
-        WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'余额和交易记录')]"))
-        ).click()
+        # 点击 “余额和交易记录”
+        click_at(driver, 650, 300)  # 你截图位置大概中左区域，必要时可调整
 
         time.sleep(2)
 
-        # 获取积分
-        balance = get_balance(driver)
+        # 从弹窗读取余额
+        balance = get_balance_from_popup(driver)
 
-        # 检查是否已签到
+        # 判断是否已签到（明天见）
         try:
             driver.find_element(By.XPATH, "//span[contains(text(),'明天见')]")
             msg = (
@@ -89,29 +88,28 @@ def run():
                 f"👤 账号：<code>{safe_email}</code>\n"
                 "✔ 今日已签到，无需重复领取。\n"
                 f"💰 当前积分：<b>{balance}</b>\n\n"
-                
+                "🔗 https://www.oiioii.ai/"
             )
-            tg_send(msg)
             driver.quit()
+            tg_send(msg)
             return
         except:
             pass
 
-        # 点击 +300 奖励按钮
+        # 点击 +300 签到按钮
         click_at(driver, 1110, 360)
         time.sleep(2)
 
-        balance = get_balance(driver)
+        balance = get_balance_from_popup(driver)
 
         msg = (
             "🎉 <b>OiiOii 自动签到成功</b>\n\n"
             f"👤 账号：<code>{safe_email}</code>\n"
-            "🎁 今日奖励到账：<b>+300</b>\n"
+            f"🎁 今日奖励到账：<b>+300</b>\n"
             f"💰 当前积分：<b>{balance}</b>\n\n"
-           
+            
         )
 
-        tg_send(msg)
         driver.quit()
 
     except Exception as e:
@@ -120,7 +118,10 @@ def run():
             f"原因：<code>{str(e)}</code>\n"
             f"账号：{safe_email}"
         )
-        tg_send(msg)
+
+    print(msg)
+    tg_send(msg)
+
 
 if __name__ == "__main__":
     run()
