@@ -36,7 +36,7 @@ def run():
         driver.get("https://www.oiioii.ai/login")
         time.sleep(5)
 
-        print("输入账号密码...")
+        print("输入邮箱密码...")
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
@@ -46,34 +46,34 @@ def run():
         print("勾选协议...")
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
-        print("点击真正的“登录”按钮（type=submit）...")
-        login_btn = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))
+        print("点击真正的提交按钮（submit）...")
+        submit_btn = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.XPATH, "//form//button[@type='submit']"))
         )
-        login_btn.click()
+        submit_btn.click()
 
-        print("等待后台登录...")
+        print("等待跳转...")
         time.sleep(10)
 
         print("进入首页...")
         driver.get("https://www.oiioii.ai/home")
         time.sleep(6)
 
-        print("点“赚盒饭”按钮...")
+        print("点击赚盒饭...")
         WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
         ).click()
 
         time.sleep(3)
 
-        print("寻找每日奖励...")
-        reward = driver.find_elements(By.XPATH, "//*[contains(text(),'每日免费奖励')]")
+        print("查找每日奖励按钮...")
+        reward_btn = driver.find_elements(By.XPATH, "//*[contains(text(),'每日免费奖励')]")
 
-        if reward:
-            reward[0].click()
+        if reward_btn:
+            reward_btn[0].click()
             msg = "🎉 签到成功 +300"
         else:
-            msg = "✔ 今日已领取或按钮不存在"
+            msg = "✔ 今日已领取"
 
         driver.quit()
 
