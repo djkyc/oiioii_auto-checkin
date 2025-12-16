@@ -1,8 +1,8 @@
-name: OiiOii Daily Check-in 
+name: OiiOii Daily Check-in
 
 on:
   schedule:
-    - cron: "0 1 * * *"   # 北京时间 9 点执行
+    - cron: "0 1 * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,23 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Install system deps
+        run: |
+          sudo apt update
+          sudo apt install -y wget gnupg unzip xvfb
+          sudo apt install -y libnss3 libnspr4 libatk-bridge2.0-0 libcups2 libxkbcommon0 \
+            libxcomposite1 libxrandr2 libxdamage1 libgbm1 libasound2 libatk1.0-0 libx11-xcb1 libxshmfence1 libpango-1.0-0
+
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
-        run: |
-          pip install undetected-chromedriver selenium webdriver-manager requests
+      - name: Install Python packages
+        run: pip install undetected-chromedriver selenium webdriver-manager requests
 
-      - name: Run check-in
+      - name: Run sign-in script
         env:
           OIIOII_EMAIL: ${{ secrets.OIIOII_EMAIL }}
           OIIOII_PASSWORD: ${{ secrets.OIIOII_PASSWORD }}
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          OIIOII_TG_TOKEN: ${{ secrets.OIIOII_TG_TOKEN }}
+          OIIOII_TG_CHAT: ${{ secrets.OIIOII_TG_CHAT }}
         run: |
-          python3 checkin_udc.py
+          xvfb-run --auto-servernum python3 checkin.py
