@@ -8,68 +8,70 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-EMAIL = os.getenv("EMAIL")
-PASSWORD = os.getenv("PASSWORD")
-TG = os.getenv("TG")
-BOT, CHAT = TG.split(":", 1)
+EMAIL = os.getenv("OIIOII_EMAIL")
+PASSWORD = os.getenv("OIIOII_PASSWORD")
+TG_BOT = os.getenv("TG_BOT_TOKEN")
+TG_CHAT = os.getenv("TG_CHAT_ID")
 
 
 def tg_send(msg):
+    """向 Telegram 推送文本消息"""
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{BOT}/sendMessage",
-            data={"chat_id": CHAT, "text": msg}
-        )
-    except:
-        pass
+        url = f"https://api.telegram.org/bot{TG_BOT}/sendMessage"
+        requests.post(url, data={"chat_id": TG_CHAT, "text": msg})
+        print("TG 推送成功")
+    except Exception as e:
+        print("TG 推送失败：", e)
 
 
 def click_at(driver, x, y):
+    """在固定坐标点击（绝对稳定）"""
     actions = ActionChains(driver)
     actions.move_by_offset(x, y).click().perform()
-    actions.move_by_offset(-x, -y).perform()  # 复位坐标
+    actions.move_by_offset(-x, -y).perform()  # 复位鼠标
 
 
 def run():
     msg = ""
 
     try:
+        print("启动 UDC…")
         options = uc.ChromeOptions()
         options.add_argument("--window-size=1400,900")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
-        print("启动 UDC...")
         driver = uc.Chrome(options=options)
 
-        print("打开登录页...")
+        print("打开登录页…")
         driver.get("https://www.oiioii.ai/login")
         time.sleep(6)
 
-        print("输入账号密码...")
+        print("输入邮箱密码…")
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
+
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
-        print("点击登录按钮...")
-        submit_btn = driver.find_element(By.XPATH, "//form//button[@type='submit']")
-        submit_btn.click()
-        time.sleep(8)
+        print("点击登录按钮…")
+        login_btn = driver.find_element(By.XPATH, "//form//button[@type='submit']")
+        login_btn.click()
+        time.sleep(10)
 
-        print("进入首页...")
+        print("进入首页…")
         driver.get("https://www.oiioii.ai/home")
         time.sleep(6)
 
-        print("点击『赚盒饭』按钮（坐标点击）...")
-        click_at(driver, 1180, 95)   # ← 第一层按钮位置
+        print("点击『赚盒饭』按钮（坐标点击）…")
+        click_at(driver, 1180, 95)    # 根据你的截图固定坐标
         time.sleep(3)
 
-        print("点击『+300 奖励』按钮（坐标点击）...")
-        click_at(driver, 1110, 360)  # ← 第二层奖励按钮位置
+        print("点击『+300』按钮（坐标点击）…")
+        click_at(driver, 1110, 360)   # 弹窗内的 +300 按钮坐标
 
-        msg = "🎉 自动签到成功！（坐标点击版）"
+        msg = "🎉 自动签到成功 +300（坐标点击版）"
 
         driver.quit()
 
