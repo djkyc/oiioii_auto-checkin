@@ -7,12 +7,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-
 EMAIL = os.getenv("OIIOII_EMAIL")
 PASSWORD = os.getenv("OIIOII_PASSWORD")
 TG_BOT = os.getenv("TG_BOT_TOKEN")
 TG_CHAT = os.getenv("TG_CHAT_ID")
-
 
 def tg_send(msg):
     try:
@@ -23,33 +21,26 @@ def tg_send(msg):
     except:
         pass
 
-
 def click_at(driver, x, y):
+    """坐标点击"""
     actions = ActionChains(driver)
     actions.move_by_offset(x, y).click().perform()
     actions.move_by_offset(-x, -y).perform()
 
-
-def get_balance(driver):
-    """三层兜底机制：稳定读取积分"""
-    # 方案 1：标准 DOM
-    xpaths = [
-        "(//div[contains(@class,'credit-balance')])[1]",
-        "(//div[contains(@class,'credit-panel')]//div)[1]",
-        "//div[normalize-space(text()) and string-length(text()) < 6]"
-    ]
-    for xp in xpaths:
-        try:
-            el = WebDriverWait(driver, 4).until(
-                EC.presence_of_element_located((By.XPATH, xp))
+def get_balance_from_popup(driver):
+    """从余额弹窗读取积分（最稳定）"""
+    try:
+        el = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "(//span[contains(@class,'balance-amount')])[1]")
             )
-            text = el.text.strip().replace(",", "")
-            if text.isdigit():
-                return text
-        except:
-            pass
-    return "未知"
-
+        )
+        text = el.text.strip().replace(",", "")
+        if text.isdigit():
+            return text
+        return text
+    except:
+        return "未知"
 
 def run():
     safe_email = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
@@ -77,12 +68,19 @@ def run():
         driver.get("https://www.oiioii.ai/home")
         time.sleep(4)
 
+        # 打开赚盒饭
         click_at(driver, 1180, 95)
         time.sleep(2)
 
-        balance = get_balance(driver)
+        # 点击 “余额和交易记录”
+        click_at(driver, 650, 300)  # 你截图位置大概中左区域，必要时可调整
 
-        # 判断是否已签到
+        time.sleep(2)
+
+        # 从弹窗读取余额
+        balance = get_balance_from_popup(driver)
+
+        # 判断是否已签到（明天见）
         try:
             driver.find_element(By.XPATH, "//span[contains(text(),'明天见')]")
             msg = (
@@ -90,25 +88,26 @@ def run():
                 f"👤 账号：<code>{safe_email}</code>\n"
                 "✔ 今日已签到，无需重复领取。\n"
                 f"💰 当前积分：<b>{balance}</b>\n\n"
-                "🔗 <a href=\"https://www.oiioii.ai/\">OiiOii 官网</a>"
+                "🔗 https://www.oiioii.ai/"
             )
             driver.quit()
             tg_send(msg)
-            print(msg)
             return
         except:
             pass
 
+        # 点击 +300 签到按钮
         click_at(driver, 1110, 360)
         time.sleep(2)
 
-        balance = get_balance(driver)
+        balance = get_balance_from_popup(driver)
 
         msg = (
-            "🏆 <b>OiiOii官网 自动签到成功</b>\n\n"
+            "🎉 <b>OiiOii 自动签到成功</b>\n\n"
             f"👤 账号：<code>{safe_email}</code>\n"
-            "🎁 今日奖励到账：<b>+300</b>\n"
+            f"🎁 今日奖励到账：<b>+300</b>\n"
             f"💰 当前积分：<b>{balance}</b>\n\n"
+            
         )
 
         driver.quit()
