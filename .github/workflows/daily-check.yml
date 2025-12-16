@@ -1,4 +1,4 @@
-name: OiiOii Check-in
+name: OiiOii Daily Check-in
 
 on:
   schedule:
@@ -12,16 +12,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: sudo apt update && sudo apt install -y xvfb libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2t64
+      - name: Install system deps
+        run: |
+          sudo apt update
+          sudo apt install -y xvfb libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2t64
 
       - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - run: pip install undetected-chromedriver selenium requests
+      - name: Install Python packages
+        run: pip install undetected-chromedriver selenium requests
 
-      - env:
-          EMAIL: ${{ secrets.EMAIL }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          TG: ${{ secrets.TG }}
-        run: xvfb-run --auto-servernum python3 checkin.py
+      - name: Run check-in
+        env:
+          OIIOII_EMAIL: ${{ secrets.OIIOII_EMAIL }}
+          OIIOII_PASSWORD: ${{ secrets.OIIOII_PASSWORD }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          xvfb-run --auto-servernum python3 checkin.py
