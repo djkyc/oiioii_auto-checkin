@@ -1,8 +1,9 @@
 import os
 import time
-import random
+import re
 import requests
 from playwright.sync_api import sync_playwright
+
 
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
@@ -10,111 +11,125 @@ TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
 
-def send_tg(text):
+def send_tg(msg: str):
+    """发送 Telegram 推送"""
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
     try:
         requests.post(url, data={
             "chat_id": TG_CHAT_ID,
-            "text": text,
+            "text": msg,
             "parse_mode": "HTML"
         })
         print("TG 推送成功")
+    except Exception as e:
+        print("TG 推送失败:", e)
+
+
+def login(page):
+    """执行登录流程"""
+    print("执行登录流程...")
+    page.goto("https://www.oiioii.ai/login", timeout=60000)
+    time.sleep(4)
+
+    page.locator("input[type=email]").fill(EMAIL)
+    page.locator("input[type=password]").fill(PASSWORD)
+
+    page.get_by_role("button", name=re.compile("登录")).click()
+    print("等待登录完成...")
+    time.sleep(8)
+
+
+def find_and_click_earn(page):
+    """查找并点击 '赚盒饭' 按钮"""
+    print("查找 ‘赚盒饭’ 按钮...")
+
+    try:
+        btn = page.get_by_text("赚盒饭", exact=False)
+        btn.click()
+        print("点击赚盒饭成功！")
+        return True
     except:
-        print("TG 推送失败")
+        pass
+
+    # Fallback: 扫描所有元素
+    nodes = page.locator("*")
+    for i in range(nodes.count()):
+        try:
+            txt = nodes.nth(i).inner_text()
+        except:
+            continue
+
+        if "赚盒饭" in txt:
+            print("Fallback 找到按钮：", txt)
+            nodes.nth(i).click()
+            return True
+
+    raise Exception("无法找到赚盒饭按钮")
+
+
+def find_and_click_daily_reward(page):
+    """找到每日免费奖励按钮并点击"""
+    print("查找每日免费奖励按钮...")
+
+    btns = page.locator("button")
+    for i in range(btns.count()):
+        txt = btns.nth(i).inner_text().strip()
+        print("按钮文本：", txt)
+        if ("每日免费奖励" in txt) or ("300" in txt):
+            print("找到每日奖励按钮！")
+            btns.nth(i).click()
+            return True
+
+    return False
 
 
 def run():
-    print("=== 启动 OiiOii 签到 V4 ===")
+    print("=== OiiOii 签到脚本 V6 启动 ===")
 
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(locale="zh-CN")
-            page = context.new_page()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=False,  # 使用 XVFB，所以必须 headful
+            args=["--disable-blink-features=AutomationControlled"]
+        )
 
-            print("访问首页...")
-            page.goto("https://www.oiioii.ai/home", timeout=60000)
-            time.sleep(6)
-            print("打印页面 HTML 前 5000 字符：")
-            html = page.content()
-            print(html[:5000])
+        context = browser.new_context(
+            locale="zh-CN",
+            viewport={"width": 1440, "height": 900}
+        )
 
+        page = context.new_page()
 
-            # 登录检测
-            content = page.content()
-            if "登录" in content or "登入" in content:
-                print("检测到未登录，执行登录...")
-                page.get_by_text("登录").click()
-                time.sleep(2)
+        print("打开首页...")
+        page.goto("https://www.oiioii.ai/home", timeout=60000)
+        time.sleep(5)
 
-                page.fill("input[type=email]", EMAIL)
-                page.fill("input[type=password]", PASSWORD)
-                page.keyboard.press("Enter")
-                print("等待登录完成...")
-                time.sleep(10)
+        # 检测是否已登录
+        if "登录" in page.content():
+            login(page)
+        else:
+            print("已登录状态")
 
-            print("寻找“赚盒饭”按钮...")
+        time.sleep(4)
 
-            # ---------- 最强定位 1：可见文本 ----------
-            try:
-                earn_btn = page.get_by_text("赚盒饭")
-                earn_btn.wait_for(timeout=8000)
-                print("找到按钮：赚盒饭 (文本定位)")
-                earn_btn.click()
-            except:
-                print("文本定位失败，进入 Fallback 扫描...")
+        print("进入赚盒饭...")
+        find_and_click_earn(page)
+        time.sleep(4)
 
-                # ---------- Fallback：扫描所有文本 ----------
-                all_nodes = page.locator("*")
-                count = all_nodes.count()
+        print("尝试领取每日奖励...")
+        ok = find_and_click_daily_reward(page)
 
-                earn_btn = None
-                for i in range(count):
-                    node = all_nodes.nth(i)
-                    try:
-                        txt = node.inner_text().strip()
-                    except:
-                        continue
+        if ok:
+            result = "🎉 签到成功！已领取 +300 盒饭币"
+        else:
+            result = "✔ 今日已领取或未检测到奖励按钮"
 
-                    if "赚盒饭" in txt:
-                        print(f"找到疑似按钮：{txt}")
-                        earn_btn = node
-                        break
-
-                if not earn_btn:
-                    raise Exception("无法找到赚盒饭按钮")
-
-                earn_btn.click()
-
-            time.sleep(4)
-
-            print("寻找每日奖励按钮...")
-
-            daily_btn = None
-            buttons = page.locator("button")
-            for i in range(buttons.count()):
-                txt = buttons.nth(i).inner_text().strip()
-                print("检测按钮：", txt)
-
-                if ("每日免费奖励" in txt) or ("300" in txt):
-                    daily_btn = buttons.nth(i)
-                    break
-
-            if daily_btn:
-                print("点击每日奖励按钮...")
-                daily_btn.click()
-                result = "🎉 签到成功！获得 +300 盒饭币"
-            else:
-                result = "✔ 今日已签到或未检测到可领取奖励"
-
-            browser.close()
-
-    except Exception as e:
-        result = f"❌ 签到失败：{e}"
         print(result)
 
-    send_tg(result)
-    print("=== 脚本结束 ===")
+        send_tg(result)
+
+        browser.close()
+
+    print("=== 脚本执行完毕 ===")
 
 
 if __name__ == "__main__":
