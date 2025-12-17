@@ -1,11 +1,13 @@
 import os
 import time
+import traceback
 import requests
-import undetected_chromedriver as uc
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 
 
 EMAIL = os.getenv("OIIOII_EMAIL")
@@ -24,6 +26,21 @@ def tg_send(msg):
         pass
 
 
+def start_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--window-size=1400,900")
+
+    return webdriver.Chrome(
+        ChromeDriverManager().install(),
+        options=chrome_options
+    )
+
+
 def get_balance(driver):
     try:
         el = WebDriverWait(driver, 10).until(
@@ -40,25 +57,9 @@ def run():
     safe_email = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
 
     try:
-        # -------------------- Chrome 启动（GitHub Actions 专用） --------------------
-        options = uc.ChromeOptions()
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--disable-infobars")
-        options.add_argument("--headless=new")
-        options.add_argument("--window-size=1400,900")
+        driver = start_driver()
 
-        chrome_path = "/usr/bin/google-chrome"
-
-        driver = uc.Chrome(
-            options=options,
-            browser_executable_path=chrome_path,
-            driver_executable_path=ChromeDriverManager().install(),
-        )
-
-        # -------------------- 第 1 步：登录 --------------------
+        # 1. 登录
         driver.get("https://www.oiioii.ai/login")
 
         WebDriverWait(driver, 15).until(
@@ -75,14 +76,14 @@ def run():
         WebDriverWait(driver, 20).until(EC.url_contains("/home"))
         time.sleep(2)
 
-        # -------------------- 第 2 步：点击赚盒饭 --------------------
+        # 2. 点击赚盒饭
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
         ).click()
 
         time.sleep(1)
 
-        # -------------------- 第 3 步：领取奖励 --------------------
+        # 3. 领取奖励
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
@@ -107,29 +108,28 @@ def run():
             ).click()
             time.sleep(1)
 
-        # -------------------- 第 4 步：查看余额 --------------------
+        # 4. 查看积分
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
             )
         ).click()
 
-        time.sleep(1)
         balance = get_balance(driver)
 
-        # -------------------- 推送 --------------------
+        # 5. 推送
         if already:
             msg = (
-                "🎉 <b>OiiOii 自动签到通知</b>\n\n"
-                f"👤 账号：<code>{safe_email}</code>\n"
+                "🎉 <b>OiiOii 自动签到</b>\n"
+                f"👤 <code>{safe_email}</code>\n"
                 f"✔ 今日已签到（明天见）\n"
                 f"💰 当前积分：<b>{balance}</b>"
             )
         else:
             msg = (
-                "🎉 <b>OiiOii 自动签到成功</b>\n\n"
-                f"👤 账号：<code>{safe_email}</code>\n"
-                f"🎁 今日领取：<b>+300</b>\n"
+                "🎉 <b>OiiOii 自动签到成功</b>\n"
+                f"👤 <code>{safe_email}</code>\n"
+                f"🎁 领取：+300\n"
                 f"💰 当前积分：<b>{balance}</b>"
             )
 
@@ -137,9 +137,8 @@ def run():
 
     except Exception as e:
         msg = (
-            "❌ <b>签到失败</b>\n\n"
-            f"原因：<code>{str(e)}</code>\n"
-            f"账号：{safe_email}"
+            "❌ <b>签到失败</b>\n"
+            f"<code>{traceback.format_exc()}</code>"
         )
 
     print(msg)
