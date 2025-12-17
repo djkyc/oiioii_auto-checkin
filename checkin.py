@@ -14,7 +14,7 @@ TG_CHAT = os.getenv("TG_CHAT_ID")
 
 
 def tg_send(msg):
-    """Telegram 推送"""
+    """Telegram 推送消息"""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
@@ -25,7 +25,7 @@ def tg_send(msg):
 
 
 def get_balance(driver):
-    """从弹窗读取积分余额"""
+    """读取积分余额"""
     try:
         el = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
@@ -41,67 +41,64 @@ def run():
     safe_email = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
 
     try:
+        # ------------------------------------------------
+        # GitHub Actions 专用 Chrome 启动（最关键的部分）
+        # ------------------------------------------------
         options = uc.ChromeOptions()
-        options.add_argument("--window-size=1400,900")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--headless=new")   # GitHub Actions 必须加
+        options.add_argument("--disable-infobars")
+        options.add_argument("--headless=new")  # 必须使用新版 headless
+        options.add_argument("--window-size=1400,900")
 
         chrome_path = "/usr/bin/google-chrome"
-        if os.path.exists(chrome_path):
-            driver = uc.Chrome(options=options, browser_executable_path=chrome_path)
-        else:
-            driver = uc.Chrome(options=options)
 
-        # -------------------
+        driver = uc.Chrome(
+            options=options,
+            browser_executable_path=chrome_path,
+            driver_executable_path=uc.ChromeDriverManager().install(),
+        )
+
+        # ------------------------------------------------
         # 第 1 步：登录
-        # --------------------
+        # ------------------------------------------------
         driver.get("https://www.oiioii.ai/login")
 
-        # 输入邮箱
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
 
-        # 输入密码
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
-
-        # 勾选协议
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
-        # 点击“登录”按钮（你的截图确认按钮结构 → 必定成功）
+        # 登录按钮（截图确认结构）
         WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(text(),'登录')]")
-            )
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'登录')]"))
         ).click()
 
-        # 等待跳转主页
         WebDriverWait(driver, 20).until(EC.url_contains("/home"))
         time.sleep(2)
 
-        # -------------------
+        # ------------------------------------------------
         # 第 2 步：点击赚盒饭
-        # --------------------
+        # ------------------------------------------------
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
         ).click()
 
         time.sleep(1)
 
-        # -------------------
-        # 第 3 步：领取 +300 或识别“明天见”
-        #--------------------
-        # 等弹窗完全展开（出现余额/交易按钮即可）
+        # ------------------------------------------------
+        # 第 3 步：领取 +300 或显示“明天见”
+        # ------------------------------------------------
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
             )
         )
 
-        # 判断已签到
         already = False
         try:
             driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
@@ -109,7 +106,6 @@ def run():
         except:
             already = False
 
-        # 如果未签到：点击 +300
         if not already:
             WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable(
@@ -121,9 +117,9 @@ def run():
             ).click()
             time.sleep(1)
 
-        # -------------------
+        # ------------------------------------------------
         # 第 4 步：点击余额与交易记录 → 读取积分
-        #--------------------
+        # ------------------------------------------------
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
@@ -133,9 +129,9 @@ def run():
         time.sleep(1)
         balance = get_balance(driver)
 
-        # -------------------
-        # 发送推送
-        #--------------------
+        # ------------------------------------------------
+        # 推送结果
+        # ------------------------------------------------
         if already:
             msg = (
                 "🎉 <b>OiiOii 自动签到通知</b>\n\n"
