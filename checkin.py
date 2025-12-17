@@ -45,6 +45,9 @@ def run():
         print("登录成功！")
 
         d.execute_script("window.scrollTo(0,0);");time.sleep(1)
+        print("=== HEADLESS DOM START ===")
+        print(driver.page_source[:15000])
+        print("=== HEADLESS DOM END ===")
 
         print("寻找入口按钮…")
         xps=[
