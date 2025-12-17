@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+
 EMAIL = os.getenv("OIIOII_EMAIL")
 PASSWORD = os.getenv("OIIOII_PASSWORD")
 TG_BOT = os.getenv("TG_BOT_TOKEN")
@@ -13,6 +14,7 @@ TG_CHAT = os.getenv("TG_CHAT_ID")
 
 
 def tg_send(msg):
+    """Telegram 推送消息"""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
@@ -23,9 +25,9 @@ def tg_send(msg):
 
 
 def get_balance(driver):
-    """读取余额数字"""
+    """读取积分余额"""
     try:
-        el = WebDriverWait(driver, 10).until(
+        el = WebDriverWait(driver, 8).until(
             EC.presence_of_element_located(
                 (By.XPATH, "//div[contains(@class,'credit-balance')]//div[contains(@class,'credit-amount')]")
             )
@@ -43,8 +45,19 @@ def run():
         options.add_argument("--window-size=1400,900")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-blink-features=AutomationControlled")
 
-        driver = uc.Chrome(options=options)
+        # GitHub Actions / Linux Chrome 路径支持
+        chrome_path = "/usr/bin/google-chrome"
+        if os.path.exists(chrome_path):
+            driver = uc.Chrome(
+                options=options,
+                browser_executable_path=chrome_path,
+                headless=True
+            )
+        else:
+            driver = uc.Chrome(options=options)
 
         # 打开登录页
         driver.get("https://www.oiioii.ai/login")
@@ -53,39 +66,43 @@ def run():
         WebDriverWait(driver, 12).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
+
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
-
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
-        driver.find_element(By.XPATH, "//form//button[@type='submit']").click()
 
-        # 登录成功跳转 home
+        # 点击登录按钮
+        WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[.//div[contains(text(),'登录')]]")
+            )
+        ).click()
+
+        # 等待跳转主页
         WebDriverWait(driver, 20).until(EC.url_contains("/home"))
-
-        driver.get("https://www.oiioii.ai/home")
         time.sleep(2)
 
-        # 点击“赚盒饭”
+        # 点击赚盒饭
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//div[contains(text(),'赚盒饭')]")
+                (By.XPATH, "//*[contains(text(),'赚盒饭')]")
             )
         ).click()
 
         time.sleep(1)
 
-        # 点击“余额和交易记录”
+        # 打开余额/交易记录弹窗
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//span[contains(text(),'余额') or contains(text(),'交易')]")
+                (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
             )
         ).click()
 
         time.sleep(1)
 
-        # 判断是否已签到（出现 “明天见” 就说明已经签到）
+        # 检查是否已签到（弹出“明天见”）
         already = False
         try:
-            driver.find_element(By.XPATH, "//span[contains(text(),'明天见')]")
+            driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
             already = True
         except:
             already = False
@@ -103,10 +120,13 @@ def run():
             tg_send(msg)
             return
 
-        # 点击 +300 按钮
+        # 点击 +300 按钮（每日奖励）
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(@class,'credit-claim-btn')]")
+                (
+                    By.XPATH,
+                    "//button[contains(@class,'credit-claim-btn') or .//span[contains(text(),'300')]]"
+                )
             )
         ).click()
 
