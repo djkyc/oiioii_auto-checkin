@@ -80,4 +80,68 @@ def run():
 
         print("=== BODY CHECK START ===")
         body_text = driver.execute_script("return document.body.innerText")
-        print(body_text[:1000])_
+        print(body_text[:1000])
+        print("=== BODY CHECK END ===")
+
+        print("检查是否登录成功…")
+        wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(@class,'_avatar')]")))
+        print("登录成功！")
+
+        print("等待赚盒饭入口渲染…")
+        xp = "//button[contains(.,'Earn Bentos')] | //button[contains(.,'赚盒饭')] | //div[contains(text(),'Earn Bentos')] | //div[contains(text(),'赚盒饭')]"
+        entry = wait.until(EC.presence_of_element_located((By.XPATH, xp)))
+
+        print("点击赚盒饭入口…")
+        js_click(driver, entry)
+        time.sleep(2)
+
+        try:
+            driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
+            msg = f"🏆 已签到\n账号：{safe}"
+            print(msg)
+            tg_send(msg)
+            driver.quit()
+            return
+        except:
+            pass
+
+        print("寻找 +300 按钮…")
+        claim_xps = [
+            "//span[contains(text(),'+ 300')]/ancestor::button",
+            "//button[contains(.,'+ 300')]",
+            "//div[contains(text(),'+ 300')]/ancestor::button"
+        ]
+
+        claim = None
+        for xp in claim_xps:
+            try:
+                claim = wait.until(EC.presence_of_element_located((By.XPATH, xp)))
+                break
+            except:
+                pass
+
+        if not claim:
+            raise Exception("未找到 +300 按钮")
+
+        print("点击 +300 强化模式…")
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", claim)
+        time.sleep(1)
+
+        driver.execute_script("arguments[0].click();", claim)
+        time.sleep(0.6)
+        driver.execute_script("arguments[0].click();", claim)
+        time.sleep(1.5)
+
+        msg = f"🏆 签到成功 +300\n账号：{safe}"
+        print(msg)
+        tg_send(msg)
+        driver.quit()
+
+    except Exception as e:
+        msg = f"❌ 签到失败\n原因：{e}"
+        print(msg)
+        tg_send(msg)
+
+
+if __name__ == "__main__":
+    run()
