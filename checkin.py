@@ -1,8 +1,7 @@
 import os
 import time
-import traceback
 import requests
-
+import traceback
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -41,28 +40,31 @@ def start_driver():
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
-def get_balance(driver):
+def dump_debug(driver):
+    """保存 debug 信息"""
     try:
-        el = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//span[contains(@class,'balance-amount')]")
-            )
-        )
-        return el.text.strip()
+        with open("page.html", "w", encoding="utf-8") as f:
+            f.write(driver.page_source)
     except:
-        return "未知"
+        pass
+
+    try:
+        driver.save_screenshot("page.png")
+    except:
+        pass
 
 
 def run():
-    safe_email = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
-
     try:
         driver = start_driver()
 
-        # 1. 登录
         driver.get("https://www.oiioii.ai/login")
+        time.sleep(3)
 
-        WebDriverWait(driver, 15).until(
+        # 登录页面调试
+        dump_debug(driver)
+
+        WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
 
@@ -73,76 +75,21 @@ def run():
             EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'登录')]"))
         ).click()
 
-        WebDriverWait(driver, 20).until(EC.url_contains("/home"))
-        time.sleep(2)
+        # 登录后调试
+        time.sleep(3)
+        dump_debug(driver)
 
-        # 2. 点击赚盒饭
+        # 赚盒饭调试
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
         ).click()
 
-        time.sleep(1)
-
-        # 3. 领取奖励
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
-            )
-        )
-
-        already = False
-        try:
-            driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
-            already = True
-        except:
-            already = False
-
-        if not already:
-            WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        "//button[contains(@class,'credit-claim-btn') or .//span[contains(text(),'300')]]"
-                    )
-                )
-            ).click()
-            time.sleep(1)
-
-        # 4. 查看积分
-        WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
-            )
-        ).click()
-
-        balance = get_balance(driver)
-
-        # 5. 推送
-        if already:
-            msg = (
-                "🎉 <b>OiiOii 自动签到</b>\n"
-                f"👤 <code>{safe_email}</code>\n"
-                f"✔ 今日已签到（明天见）\n"
-                f"💰 当前积分：<b>{balance}</b>"
-            )
-        else:
-            msg = (
-                "🎉 <b>OiiOii 自动签到成功</b>\n"
-                f"👤 <code>{safe_email}</code>\n"
-                f"🎁 领取：+300\n"
-                f"💰 当前积分：<b>{balance}</b>"
-            )
-
-        driver.quit()
+        time.sleep(3)
+        dump_debug(driver)
 
     except Exception as e:
-        msg = (
-            "❌ <b>签到失败</b>\n\n"
-            f"<code>{traceback.format_exc()}</code>"
-        )
-
-    print(msg)
-    tg_send(msg)
+        dump_debug(driver)
+        raise e
 
 
 if __name__ == "__main__":
