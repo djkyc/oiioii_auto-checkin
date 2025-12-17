@@ -1,21 +1,20 @@
-import os, time, requests, undetected_chromedriver as uc
+import os,time,requests,undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-EMAIL = os.getenv("OIIOII_EMAIL")
-PASSWORD = os.getenv("OIIOII_PASSWORD")
-TG_BOT = os.getenv("TG_BOT_TOKEN")
-TG_CHAT = os.getenv("TG_CHAT_ID")
+EMAIL=os.getenv("OIIOII_EMAIL")
+PASSWORD=os.getenv("OIIOII_PASSWORD")
+TG_BOT=os.getenv("TG_BOT_TOKEN")
+TG_CHAT=os.getenv("TG_CHAT_ID")
 
-def tg_send(msg):
+def tg_send(m):
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
-            data={"chat_id": TG_CHAT, "text": msg, "parse_mode": "HTML"}
+            data={"chat_id":TG_CHAT,"text":m,"parse_mode":"HTML"}
         )
-    except:
-        pass
+    except: pass
 
 def js_click(driver, element):
     driver.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
@@ -24,99 +23,93 @@ def js_click(driver, element):
     time.sleep(1)
 
 def run():
-    safe_email = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
+    safe = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
 
     try:
-        options = uc.ChromeOptions()
-        options.add_argument("--window-size=1400,900")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--headless=new")
+        opt = uc.ChromeOptions()
+        opt.add_argument("--window-size=1920,1080")
+        opt.add_argument("--no-sandbox")
+        opt.add_argument("--disable-dev-shm-usage")
+        opt.add_argument("--disable-gpu")
+        opt.add_argument("--disable-web-security")
+        opt.add_argument("--allow-running-insecure-content")
+        opt.add_argument("--ignore-certificate-errors")
+        opt.add_argument("--remote-allow-origins=*")
+        opt.add_argument("--disable-blink-features=AutomationControlled")
+        opt.add_argument("--headless=chrome")   # ⭐ 关键：替换原 headless=new
 
-        d = uc.Chrome(options=options)
-        w = WebDriverWait(d, 20)
+        # 模拟真实浏览器 UA（非常关键）
+        opt.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+
+        driver = uc.Chrome(options=opt)
+        wait = WebDriverWait(driver, 20)
 
         print("打开登录页…")
-        d.get("https://www.oiioii.ai/login")
+        driver.get("https://www.oiioii.ai/login")
         time.sleep(3)
 
         print("输入账号密码…")
-        w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))).send_keys(EMAIL)
-        d.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
-        d.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
-        d.find_element(By.XPATH, "//form//button[@type='submit']").click()
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,"input[type=email]"))).send_keys(EMAIL)
+        driver.find_element(By.CSS_SELECTOR,"input[type=password]").send_keys(PASSWORD)
+        driver.find_element(By.CSS_SELECTOR,"input[type=checkbox]").click()
+        driver.find_element(By.XPATH,"//form//button[@type='submit']").click()
         time.sleep(5)
 
-        d.get("https://www.oiioii.ai/home")
+        print("进入首页…")
+        driver.get("https://www.oiioii.ai/home")
+        time.sleep(4)
+
+        # ⭐ 等待 JS 完整加载 React（非常关键）
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
         time.sleep(3)
 
+        # ⭐ 检查 UI 是否成功渲染
+        body_html = driver.execute_script("return document.body.innerText")
+        print("=== BODY CHECK ===")
+        print(body_html[:1000])
+        print("==================")
+
         print("检查是否登录成功…")
-        w.until(EC.presence_of_element_located((By.XPATH, "//*[contains(@class,'_avatar')]")))
+        wait.until(EC.presence_of_element_located((By.XPATH,"//*[contains(@class,'_avatar')]")))
         print("登录成功！")
 
-        # 强制滚回顶部
-        d.execute_script("window.scrollTo(0,0);")
-        time.sleep(1)
+        # ⭐ 无限等待直到 “赚盒饭” 出现在 DOM 中
+        print("等待赚盒饭入口渲染…")
+        xp = "//button[contains(.,'赚盒饭')] | //div[contains(text(),'赚盒饭')]"
+        entry = wait.until(EC.presence_of_element_located((By.XPATH, xp)))
 
-        # 打印 headless 页面结构
-        print("=== HEADLESS DOM START ===")
-        print(d.page_source[:15000])
-        print("=== HEADLESS DOM END ===")
-
-        print("寻找入口按钮…")
-        xps = [
-            "//div[contains(text(),'赚盒饭')]/ancestor::button",
-            "//button[contains(.,'赚盒饭')]",
-            "//button[contains(@class,'_credit-btn') and .//div[contains(text(),'赚盒饭')]]",
-            "//div[contains(text(),'赚盒饭')]/parent::*"
-        ]
-
-        earn = None
-        for xp in xps:
-            try:
-                earn = w.until(EC.presence_of_element_located((By.XPATH, xp)))
-                break
-            except:
-                pass
-
-        if not earn:
-            raise Exception("入口按钮未找到")
-
-        print("点击入口按钮…")
-        js_click(d, earn)
-
+        print("点击赚盒饭入口…")
+        js_click(driver, entry)
         time.sleep(2)
 
-        # 已签到检查
         try:
-            d.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
-            msg = f"🏆 已签到\n账号：{safe_email}"
+            driver.find_element(By.XPATH,"//*[contains(text(),'明天见')]")
+            msg = f"🏆 已签到\n账号：{safe}"
             print(msg)
             tg_send(msg)
-            d.quit()
+            driver.quit()
             return
         except:
             pass
 
-        print("寻找 +300 按钮…")
-        claim = w.until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//span[contains(text(),'+ 300')]/ancestor::button")
-            )
-        )
-
         print("点击 +300…")
-        js_click(d, claim)
+        claim = wait.until(EC.presence_of_element_located(
+            (By.XPATH,"//span[contains(text(),'+ 300')]/ancestor::button")
+        ))
+        js_click(driver, claim)
 
-        msg = f"🏆 签到成功 +300\n账号：{safe_email}"
+        msg = f"🏆 签到成功 +300\n账号：{safe}"
         print(msg)
         tg_send(msg)
-        d.quit()
+        driver.quit()
 
     except Exception as e:
         msg = f"❌ 签到失败\n原因：{e}"
         print(msg)
         tg_send(msg)
 
-if __name__ == "__main__":
+if __name__=="__main__":
     run()
