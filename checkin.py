@@ -14,7 +14,6 @@ TG_CHAT = os.getenv("TG_CHAT_ID")
 
 
 def tg_send(msg):
-    """发送 TG HTML 消息"""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
@@ -29,9 +28,6 @@ def run():
     msg = ""
 
     try:
-        # --------------------------
-        # 浏览器启动配置（适配 Actions）
-        # --------------------------
         options = uc.ChromeOptions()
         options.add_argument("--window-size=1400,900")
         options.add_argument("--no-sandbox")
@@ -52,17 +48,12 @@ def run():
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
-        # 点击登录
         driver.find_element(By.XPATH, "//form//button[@type='submit']").click()
-        time.sleep(6)
+        time.sleep(5)
 
-        # 跳转首页
         driver.get("https://www.oiioii.ai/home")
         time.sleep(3)
 
-        # --------------------------
-        # 登录成功检测（检测头像）
-        # --------------------------
         print("检查是否登录成功…")
         try:
             WebDriverWait(driver, 10).until(
@@ -70,30 +61,24 @@ def run():
             )
             print("登录成功！")
         except:
-            print("登录失败！未找到用户头像。")
-            raise Exception("登录失败：未检测到头像元素")
+            raise Exception("登录失败：未找到头像元素")
 
-        # --------------------------
-        # 点击【赚盒饭】按钮
-        # --------------------------
+        # 点击赚盒饭
         print("点击赚盒饭…")
-        earn_xpath = "//*[contains(@class,'_credit-btn-text') and contains(text(),'赚盒饭')]"
-
+        earn_xpath = "//div[contains(text(),'赚盒饭')]/ancestor::button"
         WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, earn_xpath))
         ).click()
 
         time.sleep(2)
 
-        # --------------------------
-        # 判断是否已签到
-        # --------------------------
+        # 已签到判断
         try:
             driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
             msg = (
                 "🏆 <b>OiiOii 自动签到</b>\n\n"
-                f"👤 账号：<code>{safe_email}</code>\n"
-                f"✔ 今日已签到，无需重复领取。\n"
+                f"账号：<code>{safe_email}</code>\n"
+                f"✔ 今日已签到。\n"
             )
             driver.quit()
             tg_send(msg)
@@ -102,34 +87,25 @@ def run():
         except:
             pass
 
-        # --------------------------
-        # 点击【+300】签到按钮
-        # --------------------------
+        # 点击 +300
         print("点击 +300…")
-        claim_xpath = "//*[contains(text(),'+ 300')]"
-
+        claim_xpath = "//span[contains(text(),'+ 300')]/ancestor::button"
         WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.XPATH, claim_xpath))
         ).click()
 
         time.sleep(3)
 
-        # --------------------------
-        # 签到成功通知
-        # --------------------------
         msg = (
             "🏆 <b>OiiOii 自动签到成功</b>\n\n"
-            f"👤 账号：<code>{safe_email}</code>\n"
-            "🎁 今日奖励到账：<b>+300</b>\n"
+            f"账号：<code>{safe_email}</code>\n"
+            "🎁 今日奖励：<b>+300</b>\n"
         )
 
         driver.quit()
 
     except Exception as e:
-        msg = (
-            "❌ <b>签到失败</b>\n\n"
-            f"原因：<code>{str(e)}</code>"
-        )
+        msg = f"❌ <b>签到失败</b>\n原因：<code>{str(e)}</code>"
 
     print(msg)
     tg_send(msg)
