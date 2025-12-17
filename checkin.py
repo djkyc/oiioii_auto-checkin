@@ -76,7 +76,7 @@ def send_already(safe, balance):
     tg_msg = (
         f"🎉 <b>OiiOii 今日奖励已领取</b>\n"
         f"👤 账号：<code>{safe}</code>\n"
-        f"💰 当前积分快：<b>{balance}</b>\n"
+        f"💰 当前积分：<b>{balance}</b>\n"
     )
     print(log_msg)
     tg_send(tg_msg)
