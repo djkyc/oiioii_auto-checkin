@@ -7,12 +7,15 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+
 EMAIL = os.getenv("OIIOII_EMAIL")
 PASSWORD = os.getenv("OIIOII_PASSWORD")
 TG_BOT = os.getenv("TG_BOT_TOKEN")
 TG_CHAT = os.getenv("TG_CHAT_ID")
 
+
 def tg_send(msg):
+    """发送 TG HTML 消息"""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
@@ -21,29 +24,17 @@ def tg_send(msg):
     except:
         pass
 
+
 def click_at(driver, x, y):
     """坐标点击"""
     actions = ActionChains(driver)
     actions.move_by_offset(x, y).click().perform()
-    actions.move_by_offset(-x, -y).perform()
+    actions.move_by_offset(-x, -y).perform()  # 归位
 
-def get_balance_from_popup(driver):
-    """从余额弹窗读取积分（最稳定）"""
-    try:
-        el = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "(//span[contains(@class,'balance-amount')])[1]")
-            )
-        )
-        text = el.text.strip().replace(",", "")
-        if text.isdigit():
-            return text
-        return text
-    except:
-        return "未知"
 
 def run():
     safe_email = EMAIL[:3] + "***@" + EMAIL.split("@")[1]
+    msg = ""
 
     try:
         options = uc.ChromeOptions()
@@ -53,59 +44,65 @@ def run():
 
         driver = uc.Chrome(options=options)
 
+        print("打开登录页…")
         driver.get("https://www.oiioii.ai/login")
-        time.sleep(5)
+        time.sleep(6)
 
-        WebDriverWait(driver, 12).until(
+        print("输入账号密码…")
+        WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
+
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
+        # 登录按钮
         driver.find_element(By.XPATH, "//form//button[@type='submit']").click()
         time.sleep(8)
 
+        # 首页
         driver.get("https://www.oiioii.ai/home")
         time.sleep(4)
 
-        # 打开赚盒饭
+        # 点击赚盒饭
         click_at(driver, 1180, 95)
         time.sleep(2)
 
-        # 点击 “余额和交易记录”
-        click_at(driver, 650, 300)  # 你截图位置大概中左区域，必要时可调整
+        # 获取最新积分
+        try:
+            balance_el = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "(//div[contains(@class,'credit-balance')])[1]"))
+            )
+            balance = balance_el.text.strip()
+        except:
+            balance = "未知"
 
-        time.sleep(2)
-
-        # 从弹窗读取余额
-        balance = get_balance_from_popup(driver)
-
-        # 判断是否已签到（明天见）
+        # 检查是否已签到
         try:
             driver.find_element(By.XPATH, "//span[contains(text(),'明天见')]")
             msg = (
                 "🏆 <b>OiiOii 自动签到通知</b>\n\n"
                 f"👤 账号：<code>{safe_email}</code>\n"
-                "✔ 今日已签到，无需重复领取。\n"
-
+                f"✔ 今日已签到，无需重复领取。\n"
+                f"💰 当前积分：<b>{balance}</b>\n\n"
+                "🔗 <a href=\"https://www.oiioii.ai/\">OiiOii 官网</a>"
             )
             driver.quit()
             tg_send(msg)
+            print(msg)
             return
         except:
             pass
 
-        # 点击 +300 签到按钮
+        # 点击 +300 按钮
         click_at(driver, 1110, 360)
         time.sleep(2)
 
-        balance = get_balance_from_popup(driver)
-
         msg = (
-            "🎉 <b>OiiOii 自动签到成功</b>\n\n"
+            "🏆 <b>OiiOii官网 自动签到成功</b>\n\n"
             f"👤 账号：<code>{safe_email}</code>\n"
-            f"🎁 今日奖励到账：<b>+300</b>\n"
-
+            "🎁 今日奖励到账：<b>+300</b>\n"
+            f"💰 当前积分：<b>{balance}</b>\n\n"
             
         )
 
