@@ -2,8 +2,10 @@ import os
 import time
 import traceback
 import requests
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -32,13 +34,11 @@ def start_driver():
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--window-size=1400,900")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-    return webdriver.Chrome(
-        ChromeDriverManager().install(),
-        options=chrome_options
-    )
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=chrome_options)
 
 
 def get_balance(driver):
@@ -137,7 +137,7 @@ def run():
 
     except Exception as e:
         msg = (
-            "❌ <b>签到失败</b>\n"
+            "❌ <b>签到失败</b>\n\n"
             f"<code>{traceback.format_exc()}</code>"
         )
 
