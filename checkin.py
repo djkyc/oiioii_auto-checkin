@@ -14,7 +14,7 @@ TG_CHAT = os.getenv("TG_CHAT_ID")
 
 
 def tg_send(msg):
-    """Telegram 推送消息"""
+    """Telegram 推送"""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
@@ -25,11 +25,11 @@ def tg_send(msg):
 
 
 def get_balance(driver):
-    """读取积分余额"""
+    """从弹窗读取积分余额"""
     try:
-        el = WebDriverWait(driver, 8).until(
+        el = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
-                (By.XPATH, "//div[contains(@class,'credit-balance')]//div[contains(@class,'credit-amount')]")
+                (By.XPATH, "//span[contains(@class,'balance-amount')]")
             )
         )
         return el.text.strip()
@@ -47,33 +47,34 @@ def run():
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--headless=new")   # GitHub Actions 必须加
 
-        # GitHub Actions / Linux Chrome 路径支持
         chrome_path = "/usr/bin/google-chrome"
         if os.path.exists(chrome_path):
-            driver = uc.Chrome(
-                options=options,
-                browser_executable_path=chrome_path,
-                headless=True
-            )
+            driver = uc.Chrome(options=options, browser_executable_path=chrome_path)
         else:
             driver = uc.Chrome(options=options)
 
-        # 打开登录页
+        # -------------------
+        # 第 1 步：登录
+        --------------------
         driver.get("https://www.oiioii.ai/login")
 
-        # 输入账号密码
-        WebDriverWait(driver, 12).until(
+        # 输入邮箱
+        WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
 
+        # 输入密码
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
+
+        # 勾选协议
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
-        # 点击登录按钮
+        # 点击“登录”按钮（你的截图确认按钮结构 → 必定成功）
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//button[.//div[contains(text(),'登录')]]")
+                (By.XPATH, "//button[contains(text(),'登录')]")
             )
         ).click()
 
@@ -81,25 +82,26 @@ def run():
         WebDriverWait(driver, 20).until(EC.url_contains("/home"))
         time.sleep(2)
 
-        # 点击赚盒饭
+        # -------------------
+        # 第 2 步：点击赚盒饭
+        --------------------
         WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//*[contains(text(),'赚盒饭')]")
-            )
+            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(),'赚盒饭')]"))
         ).click()
 
         time.sleep(1)
 
-        # 打开余额/交易记录弹窗
+        # -------------------
+        # 第 3 步：领取 +300 或识别“明天见”
+        --------------------
+        # 等弹窗完全展开（出现余额/交易按钮即可）
         WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
+            EC.presence_of_element_located(
                 (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
             )
-        ).click()
+        )
 
-        time.sleep(1)
-
-        # 检查是否已签到（弹出“明天见”）
+        # 判断已签到
         already = False
         try:
             driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
@@ -107,38 +109,47 @@ def run():
         except:
             already = False
 
-        balance = get_balance(driver)
+        # 如果未签到：点击 +300
+        if not already:
+            WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "//button[contains(@class,'credit-claim-btn') or .//span[contains(text(),'300')]]"
+                    )
+                )
+            ).click()
+            time.sleep(1)
 
-        if already:
-            msg = (
-                "🎉 <b>OiiOii 自动签到通知</b>\n\n"
-                f"👤 账号：<code>{safe_email}</code>\n"
-                f"✔ 今日已签到\n"
-                f"💰 当前积分：<b>{balance}</b>"
-            )
-            driver.quit()
-            tg_send(msg)
-            return
-
-        # 点击 +300 按钮（每日奖励）
+        # -------------------
+        # 第 4 步：点击余额与交易记录 → 读取积分
+        --------------------
         WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (
-                    By.XPATH,
-                    "//button[contains(@class,'credit-claim-btn') or .//span[contains(text(),'300')]]"
-                )
+                (By.XPATH, "//*[contains(text(),'余额') or contains(text(),'交易')]")
             )
         ).click()
 
         time.sleep(1)
         balance = get_balance(driver)
 
-        msg = (
-            "🎉 <b>OiiOii 自动签到成功</b>\n\n"
-            f"👤 账号：<code>{safe_email}</code>\n"
-            f"🎁 今日奖励：<b>+300</b>\n"
-            f"💰 当前积分：<b>{balance}</b>"
-        )
+        # -------------------
+        # 发送推送
+        --------------------
+        if already:
+            msg = (
+                "🎉 <b>OiiOii 自动签到通知</b>\n\n"
+                f"👤 账号：<code>{safe_email}</code>\n"
+                f"✔ 今日已签到（明天见）\n"
+                f"💰 当前积分：<b>{balance}</b>"
+            )
+        else:
+            msg = (
+                "🎉 <b>OiiOii 自动签到成功</b>\n\n"
+                f"👤 账号：<code>{safe_email}</code>\n"
+                f"🎁 今日领取：<b>+300</b>\n"
+                f"💰 当前积分：<b>{balance}</b>"
+            )
 
         driver.quit()
 
