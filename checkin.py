@@ -14,6 +14,7 @@ TG_CHAT = os.getenv("TG_CHAT_ID")
 
 
 def tg_send(msg):
+    """发送 TG HTML 消息"""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TG_BOT}/sendMessage",
@@ -21,6 +22,14 @@ def tg_send(msg):
         )
     except:
         pass
+
+
+def js_click(driver, element):
+    """使用 JavaScript 强制点击（无视遮挡、动画、布局）"""
+    driver.execute_script("arguments[0].scrollIntoView(true);", element)
+    time.sleep(0.5)
+    driver.execute_script("arguments[0].click();", element)
+    time.sleep(1)
 
 
 def run():
@@ -41,19 +50,21 @@ def run():
         time.sleep(3)
 
         print("输入账号密码…")
-        WebDriverWait(driver, 20).until(
+        WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type=email]"))
         ).send_keys(EMAIL)
 
         driver.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys(PASSWORD)
         driver.find_element(By.CSS_SELECTOR, "input[type=checkbox]").click()
 
+        # 点击登录
         driver.find_element(By.XPATH, "//form//button[@type='submit']").click()
         time.sleep(5)
 
         driver.get("https://www.oiioii.ai/home")
         time.sleep(3)
 
+        # 登录成功检查
         print("检查是否登录成功…")
         try:
             WebDriverWait(driver, 10).until(
@@ -61,18 +72,19 @@ def run():
             )
             print("登录成功！")
         except:
-            raise Exception("登录失败：未找到头像元素")
+            raise Exception("登录失败：未检测到头像元素")
 
-        # 点击赚盒饭
+        # 点击赚盒饭（JS click）
         print("点击赚盒饭…")
         earn_xpath = "//div[contains(text(),'赚盒饭')]/ancestor::button"
-        WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, earn_xpath))
-        ).click()
+        earn_btn = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, earn_xpath))
+        )
+        js_click(driver, earn_btn)
 
         time.sleep(2)
 
-        # 已签到判断
+        # 检查是否已签到
         try:
             driver.find_element(By.XPATH, "//*[contains(text(),'明天见')]")
             msg = (
@@ -87,12 +99,13 @@ def run():
         except:
             pass
 
-        # 点击 +300
+        # 点击 +300（JS click）
         print("点击 +300…")
         claim_xpath = "//span[contains(text(),'+ 300')]/ancestor::button"
-        WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, claim_xpath))
-        ).click()
+        claim_btn = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, claim_xpath))
+        )
+        js_click(driver, claim_btn)
 
         time.sleep(3)
 
