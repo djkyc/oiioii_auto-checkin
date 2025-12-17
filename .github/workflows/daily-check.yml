@@ -29,6 +29,10 @@ jobs:
       - name: Install Python packages
         run: pip install undetected_chromedriver selenium requests webdriver-manager
 
+      - name: Install Python packages
+        run: pip install selenium webdriver-manager requests
+
+
       - name: Run check-in
         env:
           OIIOII_EMAIL: ${{ secrets.OIIOII_EMAIL }}
